@@ -2,91 +2,75 @@ import { useFetcher } from "@remix-run/react";
 
 export default function CallPage() {
   const fetcher = useFetcher();
-
   const isLoading = fetcher.state !== "idle";
   const result: any = fetcher.data;
 
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">
-        📞 Initiate Voice Call with Nova
-      </h1>
+    <div className="min-h-screen bg-vapi-background text-vapi-text p-6 flex flex-col justify-center items-center">
+      <div className="w-full max-w-xl space-y-6">
+        <h1 className="text-3xl font-bold text-vapi-green">Nova Voice Agent</h1>
 
-      <fetcher.Form method="post" className="space-y-4">
-        <div>
-          <label className="block font-medium">Phone Number</label>
-          <input
-            name="phone_number"
-            type="tel"
-            required
-            className="w-full border rounded p-2"
-            placeholder="+91xxxxxxxxxx"
-          />
-        </div>
+        <fetcher.Form method="post" className="space-y-4">
+          {[
+            ["Phone Number", "phone_number", "tel", "+91xxxxxxxxxx"],
+            [
+              "Raw Intent",
+              "raw_intent",
+              "textarea",
+              "e.g. Ask if Het left his jacket at the hotel on Friday",
+            ],
+            ["User Name", "user_name", "text"],
+            ["Location", "location", "text"],
+            ["Time", "time", "text"],
+          ].map(([label, name, type, placeholder]) => (
+            <div key={name}>
+              <label className="block font-semibold mb-1">{label}</label>
+              {type === "textarea" ? (
+                <textarea
+                  name={name}
+                  required
+                  className="w-full bg-vapi-surface border border-vapi-border rounded p-2 text-white"
+                  placeholder={placeholder}
+                />
+              ) : (
+                <input
+                  name={name}
+                  type={type}
+                  required={name === "phone_number" || name === "raw_intent"}
+                  className="w-full bg-vapi-surface border border-vapi-border rounded p-2 text-white"
+                  placeholder={placeholder}
+                />
+              )}
+            </div>
+          ))}
 
-        <div>
-          <label className="block font-medium">Raw Intent</label>
-          <textarea
-            name="raw_intent"
-            required
-            className="w-full border rounded p-2"
-            placeholder="e.g. Ask if Het left his jacket at the hotel on Friday"
-          />
-        </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-vapi-green hover:bg-white hover:text-black duration-150 transition text-white font-semibold py-2 px-4 rounded"
+          >
+            {isLoading ? "Placing Call..." : "Place Call"}
+          </button>
+        </fetcher.Form>
 
-        <div>
-          <label className="block font-medium">User Name</label>
-          <input
-            name="user_name"
-            type="text"
-            className="w-full border rounded p-2"
-          />
-        </div>
+        {result && !result.error && (
+          <div className="p-4 border border-vapi-border rounded bg-vapi-greenBg text-vapi-green">
+            <h2 className="font-semibold">✅ Call Status</h2>
+            <pre className="text-sm mt-2 whitespace-pre-wrap">
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          </div>
+        )}
 
-        <div>
-          <label className="block font-medium">Location</label>
-          <input
-            name="location"
-            type="text"
-            className="w-full border rounded p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium">Time</label>
-          <input
-            name="time"
-            type="text"
-            className="w-full border rounded p-2"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          {isLoading ? "Placing Call..." : "Place Call"}
-        </button>
-      </fetcher.Form>
-
-      {result && !result.error && (
-        <div className="p-4 border rounded bg-green-50">
-          <h2 className="font-semibold text-green-700">✅ Call Status</h2>
-          <pre className="text-sm mt-2 whitespace-pre-wrap">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {result?.error && (
-        <div className="p-4 border rounded bg-red-50">
-          <h2 className="font-semibold text-red-700">❌ Error</h2>
-          <p className="text-sm mt-2 whitespace-pre-wrap">
-            {JSON.stringify(result.error, null, 2)}
-          </p>
-        </div>
-      )}
+        {result?.error && (
+          <div className="p-4 border border-vapi-border rounded bg-vapi-redBg text-vapi-red">
+            <h2 className="font-semibold">❌ Error</h2>
+            <p className="text-sm mt-2 whitespace-pre-wrap">
+              {JSON.stringify(result.error, null, 2)}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
