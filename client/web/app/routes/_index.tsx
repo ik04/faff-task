@@ -1,12 +1,10 @@
-import { useState } from "react";
-import { Form, useFetcher } from "@remix-run/react";
+import { useFetcher } from "@remix-run/react";
 
 export default function CallPage() {
   const fetcher = useFetcher();
-  const [submitted, setSubmitted] = useState(false);
 
   const isLoading = fetcher.state !== "idle";
-  const result = fetcher.data as any;
+  const result: any = fetcher.data;
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6">
@@ -72,7 +70,7 @@ export default function CallPage() {
         </button>
       </fetcher.Form>
 
-      {result && (
+      {result && !result.error && (
         <div className="p-4 border rounded bg-green-50">
           <h2 className="font-semibold text-green-700">✅ Call Status</h2>
           <pre className="text-sm mt-2 whitespace-pre-wrap">
@@ -80,24 +78,46 @@ export default function CallPage() {
           </pre>
         </div>
       )}
+
+      {result?.error && (
+        <div className="p-4 border rounded bg-red-50">
+          <h2 className="font-semibold text-red-700">❌ Error</h2>
+          <p className="text-sm mt-2 whitespace-pre-wrap">
+            {JSON.stringify(result.error, null, 2)}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
+import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const payload = Object.fromEntries(formData);
 
-  const response = await fetch(`${process.env.SERVER_URL}/vapi/call`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(`${process.env.SERVER_URL}/vapi/call`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  const result = await response.json();
-  return result;
+    const result = await response.json();
+
+    if (!response.ok) {
+      return json({ error: result }, { status: response.status });
+    }
+
+    return json(result);
+  } catch (err: any) {
+    return json(
+      { error: err.message || "Unexpected error occurred." },
+      { status: 500 }
+    );
+  }
 }
