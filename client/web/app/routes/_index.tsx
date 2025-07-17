@@ -19,6 +19,11 @@ export default function CallPage() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    if (!wsUrl) {
+      console.warn("WebSocket URL not provided");
+      return;
+    }
+
     const ws = new WebSocket(`${wsUrl}/updates`);
     wsRef.current = ws;
 
@@ -34,7 +39,7 @@ export default function CallPage() {
     return () => {
       ws.close();
     };
-  }, []);
+  }, [wsUrl]);
 
   const callDetails = result?.vapi_response && {
     callId: result.vapi_response.id,
