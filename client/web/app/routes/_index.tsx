@@ -33,7 +33,6 @@ export default function CallPage() {
     callId: result.vapi_response.id,
     number: result.vapi_response.customer?.number,
     createdAt: result.vapi_response.createdAt,
-    listenUrl: result.vapi_response.monitor?.listenUrl,
   };
 
   return (
@@ -96,16 +95,6 @@ export default function CallPage() {
               <p className="text-sm">
                 Started At: {new Date(callDetails.createdAt).toLocaleString()}
               </p>
-              {callDetails.listenUrl && (
-                <a
-                  href={callDetails.listenUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-vapi-green underline text-sm"
-                >
-                  🔊 Listen to Live Call
-                </a>
-              )}
             </div>
           )}
 
