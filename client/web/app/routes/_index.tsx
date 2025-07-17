@@ -1,9 +1,16 @@
-import { useFetcher } from "@remix-run/react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
+import { LoaderData } from "~/types/types";
+
+export const loader = async () => {
+  const wsUrl: string = process.env.WEBSOCKET_URL || "";
+  return { wsUrl };
+};
 
 export default function CallPage() {
+  const { wsUrl } = useLoaderData<LoaderData>();
   const fetcher = useFetcher();
   const isLoading = fetcher.state !== "idle";
   const result: any = fetcher.data;
@@ -12,7 +19,7 @@ export default function CallPage() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws/updates");
+    const ws = new WebSocket(`${wsUrl}/updates`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
