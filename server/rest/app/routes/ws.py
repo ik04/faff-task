@@ -8,6 +8,6 @@ async def websocket_endpoint(websocket: WebSocket):
     await connect_socket(websocket)
     try:
         while True:
-            await websocket.receive_text()  
+            await websocket.receive_text()
     except WebSocketDisconnect:
         await disconnect_socket(websocket)

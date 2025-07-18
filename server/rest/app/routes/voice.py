@@ -83,6 +83,8 @@ async def place_call(request: VoiceTaskRequest):
 async def handle_vapi_webhook(request: Request):
     data = await request.json()
 
+    print("Received VAPI webhook data:", data)
+
     call_info = data.get("message", {}).get("call", {})
     analysis = call_info.get("analysis") or {}
 
