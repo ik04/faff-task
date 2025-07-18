@@ -43,7 +43,8 @@ async def place_call(request: VoiceTaskRequest):
                         "role": "system",
                         "content": prompt
                     }
-                ]
+                ],
+                "tools": [{"type": "endCall"}]
             },
             "firstMessage": f"Hello, this is Nova calling on behalf of {request.user_name or 'a client'}. May I know who I'm speaking with?",
             "summaryPrompt": "Write a short natural-language summary of what happened on the call, clearly stating whether the task was completed or what the outcome was.",
@@ -83,19 +84,9 @@ async def place_call(request: VoiceTaskRequest):
 async def handle_vapi_webhook(request: Request):
     data = await request.json()
 
-    print("Received VAPI webhook data:", data)
+    print("🔔 Full VAPI Webhook Payload:")
+    print(data)
 
-    call_info = data.get("message", {}).get("call", {})
-    analysis = call_info.get("analysis") or {}
+    await broadcast(data)
 
-    summary = call_info.get("summary") or analysis.get("summary")
-    structured_data = call_info.get("structuredData") or analysis.get("structuredData")
-    call_id = call_info.get("id")
-
-    await broadcast({
-        "call_id": call_id,
-        "summary": summary,
-        "structured_data": structured_data
-    })
-
-    return {"message": "Webhook parsed and broadcasted"}
+    return {"message": "Full webhook data broadcasted"}

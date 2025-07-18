@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { LoaderData } from "~/types/types";
+import { log } from "node:console";
 
 export const loader = async () => {
   const wsUrl: string = process.env.WEBSOCKET_URL || "";
@@ -15,7 +16,7 @@ export default function CallPage() {
   const isLoading = fetcher.state !== "idle";
   const result: any = fetcher.data;
 
-  const [summaries, setSummaries] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -28,8 +29,41 @@ export default function CallPage() {
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setSummaries((prev) => [message, ...prev]);
+      const data = JSON.parse(event.data);
+      const log = data?.message;
+      if (!log?.type) {
+        console.warn("Missing log type:", log);
+        return;
+      }
+      setLogs((prevLogs) => [...prevLogs, log]);
+
+      switch (log.type) {
+        case "status-update":
+          console.log("Status:", log.status);
+          break;
+        case "end-of-call-report":
+          console.log("Summary:", log.summary);
+          console.log("Transcript:", log.transcript);
+          console.log("Recording:", log.recordingUrl);
+          break;
+        case "hang":
+          console.log("Call was hung up or had no response.");
+          break;
+        case "function-call":
+          console.log("Function Call:", log.name, log.parameters);
+          break;
+        case "speech-update":
+          console.log("Live Speech Snippet:", log.transcript);
+          break;
+        case "transcript":
+          console.log("Final Transcript:", log.transcript);
+          break;
+        case "voice-input":
+          console.log("Customer is speaking...");
+          break;
+        default:
+          console.log("Other type:", log.type, log);
+      }
     };
 
     ws.onerror = (err) => {
@@ -50,7 +84,6 @@ export default function CallPage() {
   return (
     <div className="min-h-screen bg-vapi-background text-vapi-text p-6 flex justify-center items-center">
       <div className="flex flex-col lg:flex-row gap-6 w-full max-w-5xl justify-between">
-        {/* Form Section */}
         <div className="w-full max-w-xl space-y-6 flex-1">
           <h1 className="text-3xl font-bold text-vapi-green text-center">
             Nova Voice Agent
@@ -63,7 +96,7 @@ export default function CallPage() {
                 "Raw Intent",
                 "raw_intent",
                 "textarea",
-                "e.g. Ask if Het left his jacket at the hotel on Friday",
+                "e.g. Ask if there's any reservations for a table at 7 PM",
               ],
               ["User Name", "user_name", "text"],
               ["Location", "location", "text"],
@@ -92,6 +125,7 @@ export default function CallPage() {
 
             <button
               type="submit"
+              onClick={() => setLogs([])}
               disabled={isLoading}
               className="w-full bg-vapi-green hover:bg-white hover:text-black duration-150 transition text-white font-semibold py-2 px-4 rounded"
             >
@@ -120,32 +154,71 @@ export default function CallPage() {
           )}
         </div>
 
-        {/* Sidebar Section */}
         <div className="w-full lg:w-96 bg-vapi-surface p-4 rounded border border-vapi-border text-white overflow-y-auto max-h-[80vh]">
           <h2 className="text-lg font-semibold mb-3 text-center">
-            📞 Call Summaries
+            📗 Call Logs
           </h2>
-          {summaries.length === 0 && (
+
+          {logs.length === 0 && (
             <p className="text-sm text-gray-400 text-center">
-              No summaries yet
+              No logs received yet
             </p>
           )}
-          {summaries.map((summary, index) => (
+
+          {logs.map((log, index) => (
             <div key={index} className="mb-4 border-b border-vapi-border pb-2">
-              <p className="text-xs text-vapi-green">
-                Call ID: {summary.call_id}
+              <p className="text-xs text-vapi-green font-mono">
+                Call ID: {log.call.id || log.callId || "Unknown"}
               </p>
-              <p className="text-sm mt-1 font-semibold">Summary:</p>
-              <pre className="text-sm whitespace-pre-wrap mt-1 text-vapi-text">
-                {summary.summary || "No summary provided"}
-              </pre>
-              {summary.structured_data && (
-                <details className="text-xs mt-1 text-gray-300">
-                  <summary className="cursor-pointer">Structured Data</summary>
-                  <pre className="whitespace-pre-wrap">
-                    {JSON.stringify(summary.structured_data, null, 2)}
+              <p className="text-xs text-gray-400">
+                Event: {log.type || "message"} @{" "}
+                {new Date(log.timestamp).toLocaleString()}
+              </p>
+
+              {log.status && (
+                <p className="text-sm mt-1 text-yellow-400">
+                  Status: {log.status}
+                </p>
+              )}
+
+              {log.summary && (
+                <div className="text-sm text-vapi-green font-semibold border-b border-t border-vapi-border py-3 mt-3">
+                  <p className="text-sm text-vapi-green font-mono font-semibold">
+                    Summary:
+                  </p>
+                  <pre className="text-sm whitespace-pre-wrap mt-1 text-vapi-text">
+                    {log.summary}
                   </pre>
-                </details>
+                </div>
+              )}
+
+              {log.transcript && (
+                <>
+                  <p className="text-sm mt-1 text-vapi-green font-semibold">
+                    Transcript:
+                  </p>
+                  <pre className="text-sm whitespace-pre-wrap mt-1 text-vapi-text">
+                    {log.transcript}
+                  </pre>
+                </>
+              )}
+
+              {log.snippet && (
+                <p className="text-sm mt-1 italic">🗣️ {log.snippet}</p>
+              )}
+
+              {log.note && (
+                <p className="text-sm mt-1 italic text-gray-400">{log.note}</p>
+              )}
+
+              {log.toolName && (
+                <>
+                  <p className="text-sm mt-1 font-semibold">🔧 Tool Call:</p>
+                  <p className="text-sm">Tool: {log.toolName}</p>
+                  <pre className="text-xs whitespace-pre-wrap">
+                    {JSON.stringify(log.params, null, 2)}
+                  </pre>
+                </>
               )}
             </div>
           ))}
