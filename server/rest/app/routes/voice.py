@@ -44,11 +44,37 @@ async def place_call(request: VoiceTaskRequest):
                         "content": prompt
                     }
                 ],
-                "tools": [{"type": "endCall"}]
+                "functions": [
+                    {
+                        "name": "endCall",
+                        "description": "End the phone call when the task is completed or when the user wants to hang up",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "reason": {
+                                    "type": "string",
+                                    "description": "Reason for ending the call"
+                                }
+                            },
+                            "required": ["reason"]
+                        }
+                    }
+                ]
+            },
+            "voice": {
+                "provider": "11labs",
+                "voiceId": "pGYsZruQzo8cpdFVZyJc",
+                "model": "eleven_multilingual_v2",
+                "stability": 0.5,
+                "similarityBoost": 0.8,
+                "style": 0.0,
+                "useSpeakerBoost": True
             },
             "firstMessage": f"Hello, this is Nova calling on behalf of {request.user_name or 'a client'}. May I know who I'm speaking with?",
             "summaryPrompt": "Write a short natural-language summary of what happened on the call, clearly stating whether the task was completed or what the outcome was.",
             "callbackUrl": CALLBACK_URL,
+            "endCallMessage": "Thank you for your time. Have a great day!",
+            "endCallFunctionEnabled": True
         }
     }
     
@@ -83,10 +109,6 @@ async def place_call(request: VoiceTaskRequest):
 @router.post("/vapi/webhook")
 async def handle_vapi_webhook(request: Request):
     data = await request.json()
-
-    print("🔔 Full VAPI Webhook Payload:")
-    print(data)
-
     await broadcast(data)
 
     return {"message": "Full webhook data broadcasted"}

@@ -18,6 +18,19 @@ export default function CallPage() {
 
   const [logs, setLogs] = useState<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (fetcher.state === "submitting") {
+      setLogs([]);
+    }
+  }, [fetcher.state]);
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   useEffect(() => {
     if (!wsUrl) {
@@ -35,7 +48,27 @@ export default function CallPage() {
         console.warn("Missing log type:", log);
         return;
       }
-      setLogs((prevLogs) => [...prevLogs, log]);
+      setLogs((prev) => {
+        const updated = [
+          {
+            ...log,
+            receivedAt: new Date().toISOString(),
+          },
+          ...prev,
+        ];
+        setTimeout(() => {
+          if (logContainerRef.current) {
+            if (log.type === "end-of-call-report") {
+              logContainerRef.current.scrollTop = 0; // Scroll to top
+            } else {
+              logContainerRef.current.scrollTop =
+                logContainerRef.current.scrollHeight; // Auto-scroll to bottom
+            }
+          }
+        }, 0);
+
+        return updated;
+      });
 
       switch (log.type) {
         case "status-update":
@@ -125,7 +158,6 @@ export default function CallPage() {
 
             <button
               type="submit"
-              onClick={() => setLogs([])}
               disabled={isLoading}
               className="w-full bg-vapi-green hover:bg-white hover:text-black duration-150 transition text-white font-semibold py-2 px-4 rounded"
             >
@@ -154,7 +186,10 @@ export default function CallPage() {
           )}
         </div>
 
-        <div className="w-full lg:w-96 bg-vapi-surface p-4 rounded border border-vapi-border text-white overflow-y-auto max-h-[80vh]">
+        <div
+          ref={logContainerRef}
+          className="w-full lg:w-96 bg-vapi-surface p-4 rounded border border-vapi-border text-white overflow-y-auto max-h-[80vh]"
+        >
           <h2 className="text-lg font-semibold mb-3 text-center">
             📗 Call Logs
           </h2>
@@ -167,58 +202,95 @@ export default function CallPage() {
 
           {logs.map((log, index) => (
             <div key={index} className="mb-4 border-b border-vapi-border pb-2">
-              <p className="text-xs text-vapi-green font-mono">
-                Call ID: {log.call.id || log.callId || "Unknown"}
+              <p className="text-xs text-vapi-green font-mono break-all">
+                Call ID: {log.call?.id || log.callId || "Unknown"}
               </p>
               <p className="text-xs text-gray-400">
                 Event: {log.type || "message"} @{" "}
-                {new Date(log.timestamp).toLocaleString()}
+                {new Date(log.timestamp || log.receivedAt).toLocaleString()}
               </p>
 
-              {log.status && (
+              {log.type === "status-update" && log.status && (
                 <p className="text-sm mt-1 text-yellow-400">
                   Status: {log.status}
                 </p>
               )}
 
-              {log.summary && (
-                <div className="text-sm text-vapi-green font-semibold border-b border-t border-vapi-border py-3 mt-3">
-                  <p className="text-sm text-vapi-green font-mono font-semibold">
+              {log.type === "end-of-call-report" && (
+                <>
+                  <p className="text-sm mt-2 text-vapi-green font-semibold pb-1 text-start">
                     Summary:
                   </p>
-                  <pre className="text-sm whitespace-pre-wrap mt-1 text-vapi-text">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-400">
                     {log.summary}
                   </pre>
-                </div>
+
+                  {log.transcript && (
+                    <>
+                      <p className="text-sm mt-2 text-vapi-green font-semibold pb-1 text-start">
+                        Transcript:
+                      </p>
+                      <pre className="whitespace-pre-wrap text-sm text-gray-400">
+                        {log.transcript}
+                      </pre>
+                    </>
+                  )}
+
+                  {log.recordingUrl && (
+                    <p className="text-sm mt-2">
+                      🎧 Recording:{" "}
+                      <a
+                        href={log.recordingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-vapi-green underline"
+                      >
+                        Listen
+                      </a>
+                    </p>
+                  )}
+                </>
               )}
 
-              {log.transcript && (
+              {log.type === "speech-update" && log.transcript && (
+                <p className="text-sm italic text-vapi-text mt-2">
+                  🗣️ {log.transcript}
+                </p>
+              )}
+
+              {log.type === "transcript" && (
                 <>
-                  <p className="text-sm mt-1 text-vapi-green font-semibold">
+                  <p className="text-sm mt-2 font-semibold text-vapi-green">
                     Transcript:
                   </p>
-                  <pre className="text-sm whitespace-pre-wrap mt-1 text-vapi-text">
+                  <pre className="whitespace-pre-wrap text-sm text-vapi-text">
                     {log.transcript}
                   </pre>
                 </>
               )}
 
-              {log.snippet && (
-                <p className="text-sm mt-1 italic">🗣️ {log.snippet}</p>
-              )}
-
-              {log.note && (
-                <p className="text-sm mt-1 italic text-gray-400">{log.note}</p>
-              )}
-
-              {log.toolName && (
+              {log.type === "function-call" && (
                 <>
-                  <p className="text-sm mt-1 font-semibold">🔧 Tool Call:</p>
-                  <p className="text-sm">Tool: {log.toolName}</p>
-                  <pre className="text-xs whitespace-pre-wrap">
-                    {JSON.stringify(log.params, null, 2)}
+                  <p className="text-sm mt-2 font-semibold text-vapi-green">
+                    🔧 Tool Called
+                  </p>
+                  <p className="text-sm text-vapi-text">Tool: {log.name}</p>
+                  <pre className="text-xs whitespace-pre-wrap text-gray-300">
+                    {JSON.stringify(log.parameters, null, 2)}
                   </pre>
                 </>
+              )}
+
+              {log.type === "hang" && (
+                <p className="text-sm mt-2 italic text-gray-400">
+                  📞 Call hung up or no response.
+                </p>
+              )}
+
+              {log.type === "voice-input" && (
+                <p className="text-sm mt-2 italic text-gray-400">
+                  🧏 Customer is speaking...
+                </p>
               )}
             </div>
           ))}
